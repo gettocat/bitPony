@@ -342,6 +342,8 @@ bitPony.char = {
         return parser.char(buffer.length, buffer);
     },
     write: function (value) {
+        if (typeof value == 'string')
+            value = new Buffer(value);
         return builder.char(value);
     }
 }
