@@ -223,3 +223,11 @@ https.request({
 User can create own types on bitPony base, use function bitPony.extend.
 
 More examples in [wiki doc page](https://github.com/gettocat/bitPony/wiki/0-Get-started)
+
+# Contacts
+
+You can write message about this project at my email: alex@letris.ru
+
+# Donate
+
+If my project help to you, you can donate me in bitcoin: 1KFhXAzjip6UCn8Lu8iuwvK4TkwLbmyN7e
