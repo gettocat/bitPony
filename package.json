@@ -1,0 +1,25 @@
+{
+    "name": "bitPony",
+    "version": "0.0.1",
+    "description": "small library to parse and build bitcoin network packages/transactions/blocks",
+    "main": "bitpony.js",
+    "bin": "",
+    "dependencies": {
+       "int64-buffer": ""
+    },
+    "devDependencies": {
+    },
+    "author": "Nanocat (@nano2cat)",
+    "license": "MIT",
+    "bugs": {
+        "url": ""
+    },
+    "homepage": "",
+    "keywords": [
+        "bitcoin",
+        "bitcoin protocol raw",
+        "transaction parser",
+        "block parser",
+        "blockchain"
+    ]
+}
