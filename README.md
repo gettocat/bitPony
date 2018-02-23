@@ -228,6 +228,9 @@ More examples in [wiki doc page](https://github.com/gettocat/bitPony/wiki/0-Get-
 
 You can write message about this project at my email: alex@letris.ru
 
+# Other language implementations
+Java: https://github.com/alexshadie/bitpony-java
+
 # Donate
 
 If my project help to you, you can donate me in bitcoin: 1KFhXAzjip6UCn8Lu8iuwvK4TkwLbmyN7e
