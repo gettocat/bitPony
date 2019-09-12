@@ -1,5 +1,5 @@
 {
-    "name": "bitPony",
+    "name": "bitpony",
     "version": "0.0.2",
     "description": "small library to parse and build bitcoin network packages/transactions/blocks",
     "main": "bitpony.js",
