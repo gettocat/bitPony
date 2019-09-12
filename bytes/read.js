@@ -1,4 +1,5 @@
-var coreTools = require('./tools');
+const coreTools = require('./tools');
+const constants = require('./const');
 
 var coreRead = function (buffer) {
     this.buffer = buffer;
@@ -65,7 +66,7 @@ coreRead.prototype.var_int = function (offset) {
         count = res.result
         offset = res.offset
     }
-    
+
 
     return {
         offset: offset,
@@ -337,6 +338,179 @@ coreRead.prototype.block = function (offset) {
         length: offset - startoffset,
         raw: this.buffer.slice(startoffset, offset)
     }
+}
+
+coreRead.prototype.owl = function (offset) {//binary object notation
+
+    let buffer = new Buffer(this.buffer, 'hex');
+    let startoffset = offset || 0;
+    let unserializePrimitive = function (stream, offset, version) {
+
+        let item = {};
+        let res = stream.uint8(offset);
+        item.type = res.result;
+        offset = res.offset;
+
+        if (version >= constants.owl.VERSION_VERSIONCONTROL) {
+            res = stream.uint8(offset);
+            item.mod = res.result;
+            offset = res.offset;
+        }
+
+        res = stream.string(offset);
+        item.key = coreTools.decodeUtf8(res.result.toString());
+        offset = res.offset;
+        if (item.type === constants.owl.NUMBER || item.type === constants.owl.BOOL)
+            res = stream.var_int(offset);
+        else//str
+            res = stream.string(offset);
+
+        if (item.type === constants.owl.NULL)
+            item.value = null;
+        else if (item.type === constants.owl.BOOL)
+            item.value = !!res.result;
+        else if (item.type === constants.owl.NUMBER)
+            item.value = res.result;
+        else if (item.type === constants.owl.FLOAT)
+            item.value = parseFloat(res.result);
+        else if (item.type === constants.owl.FUNCTION) {
+            item.value = new Function("return " + coreTools.decodeUtf8(res.result.toString()))()
+        } else {
+            item.value = coreTools.decodeUtf8(res.result.toString());
+        }
+        offset = res.offset;
+
+        return {
+            offset: offset,
+            result: item
+        };
+    }
+
+    let unserializeArray = function (stream, offset, version) {
+
+        let item = { value: [], count: 0 };
+
+        let res = stream.uint8(offset);
+        item.type = res.result;
+        offset = res.offset;
+
+        if (version >= constants.owl.VERSION_VERSIONCONTROL) {
+            res = stream.uint8(offset);
+            item.mod = res.result;
+            offset = res.offset;
+        }
+
+        res = stream.string(offset);
+        item.key = coreTools.decodeUtf8((res.result.toString()));
+        offset = res.offset;
+
+        res = stream.var_int(offset);
+        item.count = res.result;
+        offset = res.offset;
+
+        for (let i = 0; i < item.count; i++) {
+
+            let type = stream.uint8(offset);
+
+            offset = type.offset;
+            if (type.result === constants.owl.OBJECT) {
+                res = unserializeObject(stream, offset - 1, version);
+            } else if (type.result === constants.owl.ARRAY) {
+                res = unserializeArray(stream, offset - 1, version);
+            } else {
+                res = unserializePrimitive(stream, offset - 1, version);
+            }
+
+            offset = res.offset;
+            item.value.push(res.result.value);//keys is null
+        }
+
+        return {
+            offset: offset,
+            result: item
+        };
+    }
+
+    let unserializeObject = function (stream, offset, version) {
+        let item = { value: {}, count: 0 };
+
+        let res = stream.uint8(offset);//vc flag
+        item.type = res.result;
+        offset = res.offset;
+
+        if (version >= constants.owl.VERSION_VERSIONCONTROL) {
+            res = stream.uint8(offset);
+            item.mod = res.result;
+            offset = res.offset;
+        }
+
+        res = stream.string(offset);
+        item.key = coreTools.decodeUtf8(res.result.toString());
+        offset = res.offset;
+
+        res = stream.var_int(offset);
+        item.count = res.result;
+        offset = res.offset;
+
+        for (let i = 0; i < item.count; i++) {
+
+            let type = stream.uint8(offset);
+            offset = type.offset;
+            if (type.result === constants.owl.OBJECT) {
+                res = unserializeObject(stream, offset - 1, version);
+            } else if (type.result === constants.owl.ARRAY) {
+                res = unserializeArray(stream, offset - 1, version);
+            } else {
+                res = unserializePrimitive(stream, offset - 1, version);
+            }
+
+            offset = res.offset;
+            item.value[res.result.key] = res.result.value;
+        }
+
+        return {
+            offset: offset,
+            result: item
+        };
+    }
+
+
+    let res = {};
+    let vchash = false;
+    let sign, version;
+    let stream = new coreRead(buffer);
+    res = stream.uint16(startoffset);
+    version = res.result;
+    offset = res.offset;
+
+    res = stream.uint32(offset);
+    sign = res.result;
+    offset = res.offset;
+
+    if (version >= constants.owl.VERSION_VERSIONCONTROL) {
+        res = stream.uint32(offset);
+        vchash = res.result;
+        offset = res.offset;
+    }
+
+    let offsetWithoutSign = res.offset;
+
+    //another rule for another version can be here...
+    //we read version control bytes but dont use it in this package, see more: binon package
+    let r = unserializeObject(stream, res.offset, version);
+    res = {};
+    res.result = r.result.value;
+    res['length'] = r.offset - startoffset;
+    res['raw'] = buffer.slice(startoffset, r.offset);
+    res['offset'] = r.offset;
+    res['vchash'] = vchash;
+
+    let mysign = parseInt(coreTools.sha256(coreTools.sha256(buffer.slice(offsetWithoutSign, res.offset))).slice(0, 4).toString('hex'), 16);
+    if (mysign != sign)
+        throw new Error('owl package is not valid');
+
+    return res;
+
 }
 
 /**

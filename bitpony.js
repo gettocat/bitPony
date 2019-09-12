@@ -1,13 +1,14 @@
-var builder = require('./types/builder');
-var parser = require('./types/parser');
+const builder = require('./types/builder');
+const parser = require('./types/parser');
 
-var stackReader = require('./stack/read')
-var stackWriter = require('./stack/write')
+const stackReader = require('./stack/read')
+const stackWriter = require('./stack/write')
 
-var reader = require('./bytes/read')
-var writer = require('./bytes/write')
+const reader = require('./bytes/read')
+const writer = require('./bytes/write')
 
-var tools = require('./bytes/tools')
+const tools = require('./bytes/tools')
+const constants = require("./bytes/const");
 
 
 var bitPony = function (type, format, data) {
@@ -216,6 +217,10 @@ bitPony.prototype.parse = function () {
         this.result = new bitPony('tx_out', 'json', parser.tx_out(this.data));
     }
 
+    if (this.type == 'owl') {
+        this.result = new bitPony('owl', 'json', parser.owl(this.data));
+    }
+
     return true;
 
 }
@@ -243,6 +248,10 @@ bitPony.prototype.build = function () {
 
     if (this.type == 'tx_out') {
         this.result = builder.tx_out(this.data.amount, this.data.scriptPubKey);
+    }
+
+    if (this.type == 'owl') {
+        this.result = builder.owl(this.data);
     }
 
     return true;
@@ -435,11 +444,24 @@ bitPony.tx = {
     }
 }
 
+bitPony.owl = {
+    read: function (buffer) {
+        if (typeof buffer == 'string')
+            buffer = new Buffer(buffer,'hex');
+        return parser.owl(buffer)
+    },
+    write: function (json) {
+        let owl = new bitPony('owl', 'json', json);
+        return owl.getBuffer();
+    }
+}
+
 bitPony.stackReader = stackReader
 bitPony.stackWriter = stackWriter
 bitPony.reader = reader;
 bitPony.writer = writer;
 bitPony.tool = tools;
+bitPony.const = constants;
 
 bitPony.extend = function(type, cb){
     bitPony[type] = cb();

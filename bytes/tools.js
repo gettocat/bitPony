@@ -66,4 +66,12 @@ coreTools.sha256 = function (message, output) {
     return crypto.createHash('sha256').update(message).digest(output);
 }
 
+coreTools.encodeUtf8 = function (str) {
+    return unescape(encodeURIComponent(str));
+}
+
+coreTools.decodeUtf8 = function (str) {
+    return decodeURIComponent(escape(str));
+}
+
 module.exports = coreTools;

@@ -57,6 +57,10 @@ module.exports = {
     block: function (header, txlist) {
         return writeProto.block(header, txlist)
     },
+    owl: function (json) {
+        var r = new write(), res = r.owl(json, false);
+        return res.result;
+    },
     //net - bitcoin protocol messages read, only important for me
     net_version: function (protocolVersion, services, timestamp, ipRecv, portRecv, ipFrom, portFrom, nonce, useragent, startBlockHeight, relay) {
         return writeProto.version(protocolVersion, services, timestamp, ipRecv, portRecv, ipFrom, portFrom, nonce, useragent, startBlockHeight, relay)

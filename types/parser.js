@@ -55,6 +55,10 @@ module.exports = {
     block: function (buffer) {
         return readProto.block(buffer)
     },
+    owl: function (buffer) {
+        var r = new read(buffer), res = r.owl(0);
+        return res.result;
+    },
     //net - bitcoin protocol messages read, only important for me
     net_version: function (buffer) {
         return readProto.version(buffer)

@@ -1,7 +1,8 @@
-var coreTools = require('./tools');
+const coreTools = require('./tools');
+const constants = require("./const")
 
 var coreWrite = function (buffer) {
-    this.buffer = buffer||new Buffer("");
+    this.buffer = buffer || new Buffer("");
 }
 
 coreWrite.prototype.append = function (buff, append) {
@@ -104,7 +105,7 @@ coreWrite.prototype.string = function (value, append) {
         buff = value;
     else
         throw new Error("dont know type <" + (typeof value) + ">");
-    
+
     var length = this.var_int(value.length);
     res = Buffer.concat([
         length.result,
@@ -284,7 +285,7 @@ coreWrite.prototype.tx_out = function (amount, scriptPubKey, append) {
     var res = this.uint64(amount);
     push(res.result);
     var res = this.string(new Buffer(scriptPubKey, 'hex'));
-        
+
     push(res.result);
 
     this.append(push.res, append);
@@ -345,6 +346,145 @@ coreWrite.prototype.block = function (header, txlist, append) {
     return {
         result: push.res,
         length: push.res.length,
+    }
+}
+
+coreWrite.prototype.owl = function (object) {
+    let version = constants.owl.VERSION;//default version with vc bytes
+
+    let stream = new coreWrite(new Buffer(""));
+
+    let serializePrimitive = function (stream, type, key, val, version) {
+
+        stream.uint8(type, true);
+        if (version >= constants.owl.VERSION_VERSIONCONTROL)
+            stream.uint8(constants.owl.APPEND, true);
+        stream.string(new Buffer(coreTools.encodeUtf8(key)), true)
+        if (type == constants.owl.NULL) {
+            stream.var_int(0, true);
+        } else if (type == constants.owl.NUMBER || type == constants.owl.BOOL) {
+            stream.var_int(val, true);
+        } else {
+
+            if (val.toString() != "") {
+                stream.string(new Buffer(coreTools.encodeUtf8(val.toString() || "")), true)
+            } else {
+                stream.uint8(0, true)
+            }
+        }
+
+    }
+
+    let serializeArray = function (stream, key, arr, version, sort) {
+
+        stream.uint8(constants.owl.ARRAY, true);
+        if (version >= constants.owl.VERSION_VERSIONCONTROL)
+            stream.uint8(constants.owl.APPEND, true);
+        stream.string(new Buffer(coreTools.encodeUtf8(key)), true);
+        stream.var_int(arr.length, true);
+
+        if (sort)
+            arr.sort(function (a, b) {
+                return a > b;
+            });
+
+        for (let i in arr) {
+            let t = constants.owl.STRING;
+            if (arr[i] instanceof Function) {
+                t = constants.owl.FUNCTION;
+            } else if (arr[i] instanceof Array) {
+                serializeArray(stream, "", arr[i], version, sort);
+                continue;
+            } else if (arr[i] instanceof Object) {
+                serializeObject(stream, "", arr[i], version, sort);
+                continue;
+            } else if (arr[i] == null) {
+                t = constants.owl.NULL;
+                arr[i] = 0;
+            } else if (arr[i] === true) {
+                t = constants.owl.BOOL;
+                arr[i] = 1;
+            } else if (arr[i] === false) {
+                t = constants.owl.BOOL;
+                arr[i] = 0;
+            } else if (arr[i] !== "" && /^\d+$/.test(arr[i]) && isFinite(arr[i]))
+                t = constants.owl.NUMBER;
+
+            serializePrimitive(stream, t, "", arr[i], version);
+
+        }
+
+    }
+
+    let serializeObject = function (stream, key, obj, version, sort) {
+
+        if (obj == null || typeof obj == 'undefined')
+            obj = {};
+
+        let keys = Object.keys(obj);
+        stream.uint8(constants.owl.OBJECT, true);
+        if (version >= constants.owl.VERSION_VERSIONCONTROL)
+            stream.uint8(constants.owl.APPEND, true);
+        stream.string(new Buffer(coreTools.encodeUtf8("" + key)), true);
+        stream.var_int(keys.length, true);
+
+        if (sort)
+            keys.sort(function (a, b) {
+                return a > b;
+            });
+
+        for (let i in keys) {
+            let o = obj[keys[i]];
+            let t = constants.owl.STRING;//functions and others
+
+            if (o instanceof Function) {
+                t = constants.owl.FUNCTION;
+            } else if (o instanceof Array) {
+                t = constants.owl.ARRAY;
+                serializeArray(stream, keys[i], o, version, sort);
+                continue;
+            } else if (o instanceof Object) {
+                t = constants.owl.OBJECT;
+                serializeObject(stream, keys[i], o, version, sort);
+                continue;
+            } else if (o == null) {
+                t = constants.owl.NULL;
+                o = 0;
+            } else if (o === true) {
+                o = 1;
+                t = constants.owl.BOOL;
+            } else if (o === false) {
+                o = 0;
+                t = constants.owl.BOOL;
+            } else if (o !== "" && /^\d+$/.test(o) && isFinite(o) && (typeof o != 'string')) {
+                t = constants.owl.NUMBER;
+            }
+
+            //for numbers and string
+            serializePrimitive(stream, t, keys[i], o, version);
+
+        }
+    }
+
+    serializeObject(stream, "", object, version);
+    let buff = stream.getBuffer();
+    let sign = coreTools.sha256(coreTools.sha256(buff))
+    let stream2 = new coreWrite(new Buffer(""));
+
+    stream2.uint16(version, true)//version
+    stream2.uint32(parseInt(sign.slice(0, 4).toString('hex'), 16), true);//digest
+    if (version >= constants.owl.VERSION_VERSIONCONTROL) {
+        stream2.uint32("0x00000000", true);//write for version control use writeVC
+    }
+
+    let res = Buffer.concat([
+        stream2.getBuffer(),
+        buff
+    ]);
+
+    return {
+        result: res,
+        length: res.length
     }
 }
 
