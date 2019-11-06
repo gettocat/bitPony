@@ -148,7 +148,7 @@ describe('Bitcoin types', function () {
         it('should throw wrong hash', function () {
 
             assert.throws(function () {
-                bitPony.tx_in.write("612c0f25cda5ca7bcf6a3cad1a0a4c9c807b25e046ef939968b1c9d744791408___", 1, "483045022100e5dad2ab845fdabf02279fb424618547723790fd29937db738f11580facf8af20220763831cc67e7dad729bbf893da8f4ee2afbd81539314044e1b060ff664581de30121026aa1ae66d5a08776adafa2752b9d26c8b3202d261e9e83687c23b84b582b3fec");
+                bitPony.tx_in.write("612c0f25cda5ca7bcf6a3cad1a0a4c9c807b25e046ef939968b1c9d744791408ff", 1, "483045022100e5dad2ab845fdabf02279fb424618547723790fd29937db738f11580facf8af20220763831cc67e7dad729bbf893da8f4ee2afbd81539314044e1b060ff664581de30121026aa1ae66d5a08776adafa2752b9d26c8b3202d261e9e83687c23b84b582b3fec");
 
             });
 
