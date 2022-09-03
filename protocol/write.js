@@ -13,7 +13,7 @@ bitcoinMessageWrite.prototype.getResult = function (debug) {
 }
 
 bitcoinMessageWrite.version = function (protocolVersion, services, timestamp, ipRecv, portRecv, ipFrom, portFrom, nonce, useragent, startBlockHeight, relay) {
-    var res = new bitcoinMessageWrite(new Buffer(""), [
+    var res = new bitcoinMessageWrite(Buffer.from(""), [
         ['uint32', protocolVersion],
         ['uint64', services],
         ['uint64', timestamp],
@@ -42,7 +42,7 @@ bitcoinMessageWrite.getheaders = function (version, hashes, stophash) {
 
     script.push(['hash', stophash]);
 
-    var res = new bitcoinMessageWrite(new Buffer(""), script).getResult();
+    var res = new bitcoinMessageWrite(Buffer.from(""), script).getResult();
     return res;
 
 }
@@ -50,21 +50,21 @@ bitcoinMessageWrite.getheaders = function (version, hashes, stophash) {
 bitcoinMessageWrite.header = function (version, prev_block, merkle_root, timestamp, bits, nonce, txn_count) {
     if (typeof bits == 'string')
         bits = parseInt(bits, 16)
-    var res = new bitcoinMessageWrite(new Buffer(""), [
+    var res = new bitcoinMessageWrite(Buffer.from(""), [
         ['header', version, prev_block, merkle_root, timestamp, bits, nonce, txn_count],
     ]).getResult();
     return res;
 }
 
-bitcoinMessageWrite.tx = function (version, tx_in, tx_out, lock_time) {
-    var res = new bitcoinMessageWrite(new Buffer(""), [
-        ['tx', version, tx_in, tx_out, lock_time],
+bitcoinMessageWrite.tx = function (version, tx_in, tx_out, lock_time, witness) {
+    var res = new bitcoinMessageWrite(Buffer.from(""), [
+        ['tx', version, tx_in, tx_out, lock_time, witness],
     ]).getResult();
     return res;
 }
 
 bitcoinMessageWrite.block = function (header, txlist) {
-    var res = new bitcoinMessageWrite(new Buffer(""), [
+    var res = new bitcoinMessageWrite(Buffer.from(""), [
         ['block', header, txlist],
     ]).getResult();
     return res;

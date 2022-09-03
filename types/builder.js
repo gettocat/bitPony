@@ -48,8 +48,8 @@ module.exports = {
         var r = new write(), res = r.tx_out(amount, scriptPubKey, false);
         return res.result;
     },
-    tx: function (version, tx_in, tx_out, lock_time) {
-        return writeProto.tx(version, tx_in, tx_out, lock_time);
+    tx: function (version, tx_in, tx_out, lock_time, witness) {
+        return writeProto.tx(version, tx_in, tx_out, lock_time, witness);
     },
     header: function (version, prev_block, merkle_root, timestamp, bits, nonce) {
         return writeProto.header(version, prev_block, merkle_root, timestamp, bits, nonce, 0)

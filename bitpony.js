@@ -52,7 +52,7 @@ bitPony.prototype.validate = function () {
             this.data.sequence = 0;
 
         this._check('hash', function (val) {
-            var b = new Buffer(val, 'hex');
+            var b = Buffer.from(val, 'hex');
             if (b.length != 32)
                 throw new Error('hash of tx_in is 32 byte char str');
         });
@@ -85,13 +85,13 @@ bitPony.prototype.validate = function () {
         });
 
         this._check('prev_block', function (val) {
-            var b = new Buffer(val, 'hex');
+            var b = Buffer.from(val, 'hex');
             if (b.length != 32)
                 throw new Error('prev_block of block is 32 byte char str');
         });
 
         this._check('merkle_root', function (val) {
-            var b = new Buffer(val, 'hex');
+            var b = Buffer.from(val, 'hex');
             if (b.length != 32)
                 throw new Error('merkle_root of block is 32 byte char str');
         });
@@ -177,9 +177,9 @@ bitPony.prototype.validate = function () {
 
 bitPony.prototype.deepValidate = function (field, type, index) {
     var isval = true, msg;
-    var val = {valid: false}
+    var val = { valid: false }
     try {
-        val = new bitPony(type, 'validate', index==null?this.data[field]:this.data[field][index]);
+        val = new bitPony(type, 'validate', index == null ? this.data[field] : this.data[field][index]);
     } catch (e) {
         isval = false;
         msg = e.message;
@@ -239,7 +239,7 @@ bitPony.prototype.build = function () {
     }
 
     if (this.type == 'tx') {
-        this.result = builder.tx(this.data.version, this.data.in, this.data.out, this.data.lock_time);
+        this.result = builder.tx(this.data.version, this.data.in, this.data.out, this.data.lock_time, this.data.witness);
     }
 
     if (this.type == 'tx_in') {
@@ -260,9 +260,9 @@ bitPony.prototype.build = function () {
 
 bitPony.prototype.getJSON = function () {
 
-    if (this.type == 'binary') {
+    if (this.format == 'binary') {
         return this.result;
-    } else if (this.type == 'json') {
+    } else if (this.format == 'json') {
         return this.data;
     }
 
@@ -286,7 +286,7 @@ bitPony.prototype.getBuffer = function () {
 bitPony.uint8 = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.uint8(buffer);
     },
     write: function (value) {
@@ -299,7 +299,7 @@ bitPony.uint8 = {
 bitPony.uint16 = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.uint16(buffer);
     },
     write: function (value) {
@@ -312,7 +312,7 @@ bitPony.uint16 = {
 bitPony.uint32 = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.uint32(buffer);
     },
     write: function (value) {
@@ -325,7 +325,7 @@ bitPony.uint32 = {
 bitPony.uint64 = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.uint64(buffer);
     },
     write: function (value) {
@@ -336,7 +336,7 @@ bitPony.uint64 = {
 bitPony.var_int = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.var_int(buffer);
     },
     write: function (value) {
@@ -347,12 +347,12 @@ bitPony.var_int = {
 bitPony.char = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.char(buffer.length, buffer);
     },
     write: function (value) {
         if (typeof value == 'string')
-            value = new Buffer(value);
+            value = Buffer.from(value);
         return builder.char(value);
     }
 }
@@ -360,7 +360,7 @@ bitPony.char = {
 bitPony.string = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.string(buffer);
     },
     write: function (value) {
@@ -371,7 +371,7 @@ bitPony.string = {
 bitPony.hash = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.hash(buffer);
     },
     write: function (value) {
@@ -382,14 +382,14 @@ bitPony.hash = {
 bitPony.tx_in = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.tx_in(buffer)
     },
     write: function (hash, index, scriptSig, sequence) {
         if (!scriptSig || typeof scriptSig != 'string')
             throw new Error('wrong scriptSig, must be hexstring');
 
-        var txin = new bitPony('tx_in', 'json', {'scriptSig': scriptSig, 'index': index, 'hash': hash, 'sequence': sequence});
+        var txin = new bitPony('tx_in', 'json', { 'scriptSig': scriptSig, 'index': index, 'hash': hash, 'sequence': sequence });
         return txin.getBuffer();
     }
 }
@@ -397,11 +397,11 @@ bitPony.tx_in = {
 bitPony.tx_out = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.tx_out(buffer)
     },
     write: function (amount, scriptPubKey) {
-        var txin = new bitPony('tx_out', 'json', {'scriptPubKey': scriptPubKey, 'amount': amount});
+        var txin = new bitPony('tx_out', 'json', { 'scriptPubKey': scriptPubKey, 'amount': amount });
         return txin.getBuffer();
     }
 }
@@ -409,11 +409,11 @@ bitPony.tx_out = {
 bitPony.header = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.header(buffer)
     },
     write: function (version, prev_block, merkle_root, timestamp, bits, nonce) {
-        var txin = new bitPony('blockheader', 'json', {'version': version, 'prev_block': prev_block, 'merkle_root': merkle_root, 'timestamp': timestamp, 'bits': bits, 'nonce': nonce});
+        var txin = new bitPony('blockheader', 'json', { 'version': version, 'prev_block': prev_block, 'merkle_root': merkle_root, 'timestamp': timestamp, 'bits': bits, 'nonce': nonce });
         return txin.getBuffer();
     }
 }
@@ -421,11 +421,11 @@ bitPony.header = {
 bitPony.block = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.block(buffer)
     },
     write: function (header, txns) {
-        var txin = new bitPony('block', 'json', {'header': header, 'txns': txns});
+        var txin = new bitPony('block', 'json', { 'header': header, 'txns': txns });
         return txin.getBuffer();
     }
 }
@@ -433,13 +433,18 @@ bitPony.block = {
 bitPony.tx = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.tx(buffer)
     },
-    write: function (version, tx_in, tx_out, lock_time) {
+    write: function (version, tx_in, tx_out, lock_time, witness) {
         if (!lock_time)
             lock_time = 0;
-        var txin = new bitPony('tx', 'json', {'version': version, 'in': tx_in, 'out': tx_out, 'lock_time': lock_time});
+
+        let data = { 'version': version, 'in': tx_in, 'out': tx_out, 'lock_time': lock_time };
+        if (witness)
+            data.witness = witness;
+
+        var txin = new bitPony('tx', 'json', data);
         return txin.getBuffer();
     }
 }
@@ -447,7 +452,7 @@ bitPony.tx = {
 bitPony.owl = {
     read: function (buffer) {
         if (typeof buffer == 'string')
-            buffer = new Buffer(buffer,'hex');
+            buffer = Buffer.from(buffer, 'hex');
         return parser.owl(buffer)
     },
     write: function (json) {
@@ -463,7 +468,7 @@ bitPony.writer = writer;
 bitPony.tool = tools;
 bitPony.const = constants;
 
-bitPony.extend = function(type, cb){
+bitPony.extend = function (type, cb) {
     bitPony[type] = cb();
 }
 

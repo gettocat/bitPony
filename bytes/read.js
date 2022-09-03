@@ -285,29 +285,106 @@ coreRead.prototype.tx_out = function (offset) {
 
 
 coreRead.prototype.tx = function (offset) {
-    var tx = {}, startoffset = offset;
+    try {
 
-    var res = this.uint32(offset);
-    offset = res.offset;
-    tx.version = res.result;
+        var tx = {}, startoffset = offset;
 
-    res = this.vector_tx_in(offset);
-    offset = res.offset;
-    tx.in_count = res.length;
-    tx.in = res.result;
+        var res = this.uint32(offset);
+        offset = res.offset;
+        tx.version = res.result;
+
+        let legacy = true;
+        let flag_offset = offset;//2
+
+        res = this.uint8(offset);
+        offset = res.offset;
+        let marker = res.result;
+
+        res = this.uint8(offset);
+        offset = res.offset;
+
+        let witness_offset_start, witness_offset_end;
+
+        let flag = res.result;
+
+        if (flag == 1 && marker == 0)
+            legacy = false;
+
+        //check here for witness flag
+        if (legacy) {
+            tx.legacy = true;
+
+            offset -= 2;//remove marker and flag
+
+            res = this.vector_tx_in(offset);
+            offset = res.offset;
+            tx.in_count = res.length;
+            tx.in = res.result;
 
 
-    res = this.vector_tx_out(offset);
-    offset = res.offset;
-    tx.out_count = res.length;
-    tx.out = res.result;
+            res = this.vector_tx_out(offset);
+            offset = res.offset;
+            tx.out_count = res.length;
+            tx.out = res.result;
 
-    res = this.uint32(offset);
-    offset = res.offset;
-    tx.lock_time = res.result;
-    var raw;
-    tx.hash = coreTools.reverseBuffer(coreTools.sha256(coreTools.sha256(raw = this.buffer.slice(startoffset, offset)))).toString('hex');
-    tx.length = raw.length
+        } else {
+
+            res = this.vector_tx_in(offset);
+            offset = res.offset;
+            tx.in_count = res.length;
+            tx.in = res.result;
+
+
+            res = this.vector_tx_out(offset);
+            offset = res.offset;
+            tx.out_count = res.length;
+            tx.out = res.result;
+
+            witness_offset_start = offset;
+
+            let witness = [];
+            for (let wnum = 0; wnum < tx.in_count; wnum++) {
+                res = this.vector('string', offset);
+                offset = res.offset;
+
+                let a = [];
+                for (let k in res.result) {
+                    if (res.result[k] instanceof Buffer)
+                        a.push(res.result[k].toString('hex'))
+                    else
+                        a.push(res.result[k]);
+                }
+
+                witness.push(a);
+
+            }
+
+            tx.witness = witness;
+            witness_offset_end = offset;
+        }
+
+        res = this.uint32(offset);
+        offset = res.offset;
+        tx.lock_time = res.result;
+        var raw;
+        tx.whash = coreTools.reverseBuffer(coreTools.sha256(coreTools.sha256(raw = this.buffer.subarray(startoffset, offset)))).toString('hex');
+        tx.hash = tx.whash;
+
+        if (!legacy) {
+            let hash = Buffer.concat([
+                this.buffer.subarray(startoffset, flag_offset),
+                this.buffer.subarray(flag_offset + 2, witness_offset_start),
+                this.buffer.subarray(witness_offset_end, offset),
+            ]);
+
+            tx.hash = coreTools.reverseBuffer(coreTools.sha256(coreTools.sha256(hash))).toString('hex');
+        }
+
+        tx.length = raw.length
+
+    } catch (e) {
+        throw new Error('error while parsing ' + e.message + ', starting from ' + startoffset + ' to ' + offset);
+    }
 
     return {
         offset: offset,
@@ -342,7 +419,7 @@ coreRead.prototype.block = function (offset) {
 
 coreRead.prototype.owl = function (offset) {//binary object notation
 
-    let buffer = new Buffer(this.buffer, 'hex');
+    let buffer = Buffer.from(this.buffer, 'hex');
     let startoffset = offset || 0;
     let unserializePrimitive = function (stream, offset, version) {
 

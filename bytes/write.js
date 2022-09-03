@@ -2,7 +2,7 @@ const coreTools = require('./tools');
 const constants = require("./const")
 
 var coreWrite = function (buffer) {
-    this.buffer = buffer || new Buffer("");
+    this.buffer = buffer || Buffer.from("");
 }
 
 coreWrite.prototype.append = function (buff, append) {
@@ -22,7 +22,7 @@ coreWrite.prototype.getBuffer = function () {
 }
 
 coreWrite.prototype.uint8 = function (value, append) {
-    var res = new Buffer(coreTools.numHex(value), 'hex');
+    var res = Buffer.from(coreTools.numHex(value), 'hex');
     this.append(res, append);
     return {
         length: res.length,
@@ -66,7 +66,7 @@ coreWrite.prototype.var_int = function (value, append) {
     if (value > 0xFFFFFFF) {
         var res = this.uint64(value);
         res = Buffer.concat([
-            new Buffer([0xFF]),
+            Buffer.from([0xFF]),
             res.result
         ]);
 
@@ -74,14 +74,14 @@ coreWrite.prototype.var_int = function (value, append) {
     } else if (value > 0xFFFF) {
         var res = this.uint32(value);
         res = Buffer.concat([
-            new Buffer([0xFE]),
+            Buffer.from([0xFE]),
             res.result
         ])
         this.append(res, append);
     } else if (value >= 0xFD) {
         var res = this.uint16(value);
         res = Buffer.concat([
-            new Buffer([0xFD]),
+            Buffer.from([0xFD]),
             res.result
         ]);
         this.append(res, append);
@@ -100,7 +100,7 @@ coreWrite.prototype.var_int = function (value, append) {
 coreWrite.prototype.string = function (value, append) {
     var buff, res;
     if (typeof value === 'string')
-        buff = new Buffer(value);
+        buff = Buffer.from(value);
     else if (value instanceof Buffer)
         buff = value;
     else
@@ -123,7 +123,7 @@ coreWrite.prototype.string = function (value, append) {
 coreWrite.prototype.char = function (value, append) {
     var buff;
     if (value instanceof String)
-        buff = new Buffer(value);
+        buff = Buffer.from(value);
     else if (value instanceof Buffer)
         buff = value;
     else
@@ -139,8 +139,8 @@ coreWrite.prototype.char = function (value, append) {
 
 coreWrite.prototype.ip = function (ip, append) {
     var res = Buffer.concat([
-        new Buffer([0x0, 0x0, 0xFF, 0xFF]),
-        new Buffer(Number(coreTools.ipv4toLong(ip)).toString(16), 'hex')
+        Buffer.from([0x0, 0x0, 0xFF, 0xFF]),
+        Buffer.from(Number(coreTools.ipv4toLong(ip)).toString(16), 'hex')
     ]);
 
 
@@ -154,7 +154,7 @@ coreWrite.prototype.ip = function (ip, append) {
 }
 
 coreWrite.prototype.hash = function (hexstring, append) {
-    var b = new Buffer(hexstring, 'hex');
+    var b = Buffer.from(hexstring, 'hex');
     b = coreTools.reverseBuffer(b);
     var res = this.char(b);
 
@@ -177,7 +177,7 @@ coreWrite.prototype.net_addr = function (timestamp, services, ip, port, append) 
         buff = this.uint32(timestamp);
         push.res = buff.result;
     } else
-        push.res = new Buffer([]);
+        push.res = Buffer.from([]);
 
 
     buff = this.uint64(services);
@@ -189,7 +189,7 @@ coreWrite.prototype.net_addr = function (timestamp, services, ip, port, append) 
     buff = this.ip(ip);
     push(buff.result);
 
-    buff = new Buffer(Number(port).toString(16), 'hex');
+    buff = Buffer.from(Number(port).toString(16), 'hex');
     push(buff);
 
     this.append(push.res, append)
@@ -207,7 +207,7 @@ coreWrite.prototype.header = function (version, prev_block, merkle_root, timesta
             buff,
         ]);
     };
-    push.res = new Buffer("");
+    push.res = Buffer.from("");
 
     var res = this.uint32(version);
     push(res.result)
@@ -248,7 +248,7 @@ coreWrite.prototype.tx_in = function (hash, index, scriptSig, sequence, append) 
             buff,
         ]);
     };
-    push.res = new Buffer("");
+    push.res = Buffer.from("");
 
 
     var res = this.hash(hash);
@@ -256,7 +256,7 @@ coreWrite.prototype.tx_in = function (hash, index, scriptSig, sequence, append) 
     var res = this.uint32(index);
     push(res.result);
 
-    var res = this.string(new Buffer(scriptSig, 'hex'));
+    var res = this.string(Buffer.from(scriptSig, 'hex'));
     push(res.result);
 
 
@@ -280,11 +280,11 @@ coreWrite.prototype.tx_out = function (amount, scriptPubKey, append) {
             buff,
         ]);
     };
-    push.res = new Buffer("");
+    push.res = Buffer.from("");
 
     var res = this.uint64(amount);
     push(res.result);
-    var res = this.string(new Buffer(scriptPubKey, 'hex'));
+    var res = this.string(Buffer.from(scriptPubKey, 'hex'));
 
     push(res.result);
 
@@ -295,14 +295,72 @@ coreWrite.prototype.tx_out = function (amount, scriptPubKey, append) {
     }
 }
 
-coreWrite.prototype.tx = function (version, tx_in, tx_out, lock_time, append) {
+coreWrite.prototype.tx = function (version, tx_in, tx_out, lock_time, witness, append) {
     var push = function (buff) {
         return push.res = Buffer.concat([
             push.res,
             buff,
         ]);
     };
-    push.res = new Buffer("");
+    push.res = Buffer.from("");
+
+    var res = this.uint32(version);
+    push(res.result);
+
+    if (witness) {
+
+        var res = this.uint8(0);
+        push(res.result);
+
+        var res = this.uint8(1);
+        push(res.result);
+
+    }
+
+    res = this.vector_tx_in(tx_in);
+    push(res.result);
+
+    res = this.vector_tx_out(tx_out);
+    push(res.result);
+
+    if (witness)
+        for (let i in witness) {
+
+            let n = 0;
+            if (witness[i])
+                n = witness[i].length;
+
+            res = this.var_int(n);
+            push(res.result);
+
+            if (n > 0)
+                for (let k in witness[i]) {
+                    res = this.string(Buffer.from(witness[i][k], 'hex'));
+                    push(res.result);
+                }
+
+
+        }
+
+    res = this.uint32(lock_time);
+    push(res.result);
+
+    this.append(push.res, append);
+
+    return {
+        result: push.res,
+        length: push.res.length,
+    }
+}
+
+coreWrite.prototype.tx_legacy = function (version, tx_in, tx_out, lock_time, append) {
+    var push = function (buff) {
+        return push.res = Buffer.concat([
+            push.res,
+            buff,
+        ]);
+    };
+    push.res = Buffer.from("");
 
     var res = this.uint32(version);
     push(res.result);
@@ -331,7 +389,7 @@ coreWrite.prototype.block = function (header, txlist, append) {
             buff,
         ]);
     };
-    push.res = new Buffer("");
+    push.res = Buffer.from("");
 
     if (typeof header.bits == 'string')
         header.bits = parseInt(header.bits, 16)
@@ -352,14 +410,14 @@ coreWrite.prototype.block = function (header, txlist, append) {
 coreWrite.prototype.owl = function (object) {
     let version = constants.owl.VERSION;//default version with vc bytes
 
-    let stream = new coreWrite(new Buffer(""));
+    let stream = new coreWrite(Buffer.from(""));
 
     let serializePrimitive = function (stream, type, key, val, version) {
 
         stream.uint8(type, true);
         if (version >= constants.owl.VERSION_VERSIONCONTROL)
             stream.uint8(constants.owl.APPEND, true);
-        stream.string(new Buffer(coreTools.encodeUtf8(key)), true)
+        stream.string(Buffer.from(coreTools.encodeUtf8(key)), true)
         if (type == constants.owl.NULL) {
             stream.var_int(0, true);
         } else if (type == constants.owl.NUMBER || type == constants.owl.BOOL) {
@@ -367,7 +425,7 @@ coreWrite.prototype.owl = function (object) {
         } else {
 
             if (val.toString() != "") {
-                stream.string(new Buffer(coreTools.encodeUtf8(val.toString() || "")), true)
+                stream.string(Buffer.from(coreTools.encodeUtf8(val.toString() || "")), true)
             } else {
                 stream.uint8(0, true)
             }
@@ -380,7 +438,7 @@ coreWrite.prototype.owl = function (object) {
         stream.uint8(constants.owl.ARRAY, true);
         if (version >= constants.owl.VERSION_VERSIONCONTROL)
             stream.uint8(constants.owl.APPEND, true);
-        stream.string(new Buffer(coreTools.encodeUtf8(key)), true);
+        stream.string(Buffer.from(coreTools.encodeUtf8(key)), true);
         stream.var_int(arr.length, true);
 
         if (sort)
@@ -425,7 +483,7 @@ coreWrite.prototype.owl = function (object) {
         stream.uint8(constants.owl.OBJECT, true);
         if (version >= constants.owl.VERSION_VERSIONCONTROL)
             stream.uint8(constants.owl.APPEND, true);
-        stream.string(new Buffer(coreTools.encodeUtf8("" + key)), true);
+        stream.string(Buffer.from(coreTools.encodeUtf8("" + key)), true);
         stream.var_int(keys.length, true);
 
         if (sort)
@@ -469,7 +527,7 @@ coreWrite.prototype.owl = function (object) {
     serializeObject(stream, "", object, version);
     let buff = stream.getBuffer();
     let sign = coreTools.sha256(coreTools.sha256(buff))
-    let stream2 = new coreWrite(new Buffer(""));
+    let stream2 = new coreWrite(Buffer.from(""));
 
     stream2.uint16(version, true)//version
     stream2.uint32(parseInt(sign.slice(0, 4).toString('hex'), 16), true);//digest
@@ -495,7 +553,7 @@ coreWrite.prototype.vector = function (method, paramsOrder, arr, append) {
             buff,
         ]);
     };
-    push.res = new Buffer("");
+    push.res = Buffer.from("");
 
     var res = this.var_int(arr.length);
     push(res.result);
@@ -560,6 +618,7 @@ coreWrite.prototype.vector_tx = function (arr, append) {
         'version',
         'in',
         'out',
+        'witness',
         'lock_time'
     ], arr);
 
